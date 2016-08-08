@@ -21,8 +21,13 @@ function add-repo() {
 function copy_file(){
   local _FILE="${1}"
   local _DEST="${2}"
-  local _HOST="/vagrant/files"
-  cp "${_HOST}/${_FILE}" "${_DEST}"
+  local _DIR=${FILES_DIR:-/vagrant/files}
+  if [ -e "${_DIR}/${_FILE}" ]; then
+    cp "${_DIR}/${_FILE}" "${_DEST}"
+    echo "${_DEST}"
+  else
+    echo ""
+  fi
 }
 
 function wget_file() {

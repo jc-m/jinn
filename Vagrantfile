@@ -43,7 +43,6 @@ CONTROLLERS = roles['controller']['servers'].join(" ")
 SLAVES = roles['node']['servers'].join(" ")
 CEPH_NODES = roles['ceph']['servers'].join(" ")
 
-FSID = "07c965c8-fa90-4b17-9682-cad35a8e7bd6"
 
 NICTYPE = "virtio"
 

@@ -6,11 +6,6 @@
 set -e
 set -x
 
-
-#for jdk8
-add-apt-repository ppa:openjdk-r/ppa
-
-
 apt-get update &>/dev/null
 
 # Install a kernel more recent than 4.2.0-35

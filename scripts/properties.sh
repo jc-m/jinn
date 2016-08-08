@@ -35,6 +35,10 @@ function get_property()
   local _NBMONS=""
   local _PGNUMS=256
   local _CLUSTER="${CLUSTER:-ceph}"
+  local _CEPH_CLIENT_KEYRING=""
+  local _CEPH_MON_KEYRING=""
+  local _CEPH_OSD_KEYRING=""
+
   local _var=$1
   local _NET_IP=$2
   local property
@@ -50,7 +54,7 @@ function get_property()
   fi
 
 
-  if [[ -z "${NET_IP}" ||  -z "${NET_MASK}"  ||  -z "${DC_NAME}" || -z "${CTRLNODES}" || -z ${NET_MASK} ]]; then
+  if [[ -z "${NET_IP}" ||  -z "${NET_MASK}"  ||  -z "${DC_NAME}" || -z ${NET_MASK}  ]]; then
     echo "Missing Parameter(s)"
     exit 1
   fi
@@ -90,8 +94,17 @@ function get_property()
     _MESOS_DEDICATED="controller"
   fi
 
+  _FSID="07c965c8-fa90-4b17-9682-cad35a8e7bd6"
+
+  _CEPH_CLIENT_KEYRING="AQBhIKBXej3ZLxAA/lk8SthLRH3kurqC++06iw=="
+  _CEPH_MON_KEYRING="AQCIIKBXoj2iNBAAU3G0ebABsG5VMUA2DpsdXg=="
+  _CEPH_OSD_KEYRING="AQBhIKBXPktLMBAACYATSLMVY7KggqWi0tRyZA=="
+  _CEPH_MDS_KEYRING="AQBhIKBXjUq2MBAA9FEoJHB/bwVLDpR723gcGg=="
+  _CEPH_RGW_KEYRING="AQBhIKBXyq8uMRAAoWLG/eVK+IiEAnBuBHAIFw=="
+
   # calculate  monitor id
   counter=1
+
   for ip in "${CEPHNODES[@]}"; do 
     if [ "$ip" = "$NET_IP" ]; then
       _CEPH_MON_ID=$counter
@@ -99,6 +112,7 @@ function get_property()
     (( counter ++ ))
   done
   (( _NBMONS = counter - 1 ))
+  _CEPH_MONITORS=$(IFS=, ; echo "${CEPHNODES[*]}")
 
   if [[ $_NBMONS -lt 3 ]]; then
     _PGNUM=128

@@ -1,8 +1,11 @@
 .vagrant
-.dockercfg
+dockercfg
 jinn.yml
 disk-*.vdi
 ceph
 username
 cached-files
 registry-data
+terraform.tfstate
+terraform.tfstate.backup
+*.tfvars

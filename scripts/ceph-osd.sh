@@ -66,15 +66,31 @@ if [[ -z "$RACK" || -z "$HOSTNAME" || -z "$PGNUM" ]]; then
   exit 1
 fi
 
+PGNUM=$(get_property PGNUM)
+CLUSTER=$(get_property CLUSTER)
+CEPH_OSD_KEYRING=$(get_property CEPH_OSD_KEYRING)
+CEPHUSER="ceph"
+CEPHGROUP="ceph"
+
+mkdir -p /var/lib/ceph/bootstrap-osd
+BOOTSTRAP_OSD_KR="/var/lib/ceph/bootstrap-osd/${CLUSTER}.keyring"
+cat >"${BOOTSTRAP_OSD_KR}" <<END
+[client.bootstrap-osd]
+key = ${CEPH_OSD_KEYRING}
+caps mon = "allow profile bootstrap-osd"
+END
+
+chown "${CEPHUSER}":"${CEPHGROUP}" ${BOOTSTRAP_OSD_KR}
+
 
 if ! grep -P '^\s*osd\s+crush\s+location\s*=' /etc/ceph/ceph.conf >/dev/null; then
     sed -i -e "/^\[global\]/a osd crush location = host=$HOSTNAME rack=$RACK root=default" /etc/ceph/ceph.conf
 fi
 
-for sysblock in /sys/block/sd*; do
+for sysblock in /sys/block/xvd*; do
     devnode=/dev/${sysblock##*/}
 
-    if clean_drive "${devnode}" && whitelisted_drive "${devnode}" && whitelisted_controller "${devnode}"; then
+    if clean_drive "${devnode}"; then
         echo "Install ceph OSD on ${devnode}"
         ceph-disk -v prepare --fs-type xfs --cluster ceph -- "${devnode}"
     else

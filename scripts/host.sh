@@ -33,7 +33,7 @@ function set_hosts() {
   done
 }
 
-if [[ -z "$NET_IP" || -z "$HOSTNAME" || -z "$CTRLNODES" || -z "$CEPHNODES" || -z "$SLNODES" || -z "$CIDR" ]]; then
+if [[ -z "$NET_IP" || -z "$HOSTNAME" || -z "$CIDR" ]]; then
   echo "Missing Parameter(s)"
   exit 1
 fi

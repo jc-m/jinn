@@ -7,33 +7,52 @@ set -e
 set -x
 
 
-if [[ -z "$CLUSTER" || -z "$HOSTNAME" || -z "$FSID" ]]; then
+if [[ -z "$CLUSTER" || -z "$HOSTNAME" ]]; then
   echo "Missing Parameter(s)"
   exit 1
 fi
 
-USER="ceph"
-GROUP="ceph"
+FSID=$(get_property FSID)
+CLUSTER=$(get_property CLUSTER)
+NBMONS=$(get_property NBMONS)
+PGNUM=$(get_property PGNUM)
 
+CEPHUSER="ceph"
+CEPHGROUP="ceph"
 
+apt-get -y install ceph
+
+CEPH_CLIENT_KEYRING=$(get_property CEPH_CLIENT_KEYRING)
+CEPH_MON_KEYRING=$(get_property CEPH_MON_KEYRING)
+CEPH_OSD_KEYRING=$(get_property CEPH_OSD_KEYRING)
+CEPH_MDS_KEYRING=$(get_property CEPH_MDS_KEYRING)
+CEPH_RGW_KEYRING=$(get_property CEPH_RGW_KEYRING)
 # Initialize CEPH config
-
-mkdir -p /vagrant/ceph
-
-if [ ! -e "/vagrant/ceph/$CLUSTER.mon.keyring" ]; then
-  ceph-authtool --create-keyring "/vagrant/ceph/$CLUSTER.mon.keyring" --gen-key -n mon. --cap mon 'allow *'
-
-  ceph-authtool "/vagrant/ceph/$CLUSTER.mon.keyring" --import-keyring "/vagrant/ceph/$CLUSTER.client.admin.keyring"
-  ceph-authtool "/vagrant/ceph/$CLUSTER.mon.keyring" --import-keyring "/vagrant/ceph/bootstrap-osd.$CLUSTER.keyring"
-  ceph-authtool "/vagrant/ceph/$CLUSTER.mon.keyring" --import-keyring "/vagrant/ceph/bootstrap-mds.$CLUSTER.keyring"
-  ceph-authtool "/vagrant/ceph/$CLUSTER.mon.keyring" --import-keyring "/vagrant/ceph/bootstrap-rgw.$CLUSTER.keyring"
-
-  chmod 0755 "/vagrant/ceph/$CLUSTER.mon.keyring"
-fi
+MON_KEYRING_TMP="/tmp/mon_keyring"
+cat >"${MON_KEYRING_TMP}" <<END
+[mon.]
+key = ${CEPH_MON_KEYRING}
+caps mon = "allow *"
+[client.admin]
+key = ${CEPH_CLIENT_KEYRING}
+auid = 0
+caps mds = "allow"
+caps mon = "allow *"
+caps osd = "allow *"
+[client.bootstrap-mds]
+key = ${CEPH_MDS_KEYRING}
+caps mon = "allow profile bootstrap-mds"
+[client.bootstrap-osd]
+key = ${CEPH_OSD_KEYRING}
+caps mon = "allow profile bootstrap-osd"
+[client.bootstrap-rgw]
+key = ${CEPH_RGW_KEYRING}
+caps mon = "allow profile bootstrap-rgw"
+END
 
 
 mkdir -p "/var/lib/ceph/mon/$CLUSTER-$HOSTNAME"
-chown $USER:$GROUP "/var/lib/ceph/mon/$CLUSTER-$HOSTNAME"
+chown $CEPHUSER:$CEPHGROUP "/var/lib/ceph/mon/$CLUSTER-$HOSTNAME"
 chmod 0755 "/var/lib/ceph/mon/$CLUSTER-$HOSTNAME"
 
 temp="$(mktemp "/tmp/$CLUSTER.XXXX")"
@@ -48,19 +67,12 @@ done
 monmaptool --create ${array[*]} --fsid "$FSID" --clobber "$temp"
 
 mv "$temp" /etc/ceph/monmap
-chown $USER:$GROUP /etc/ceph/monmap
+chown $CEPHUSER:$CEPHGROUP /etc/ceph/monmap
 chmod 0640 /etc/ceph/monmap
 
 mkdir -p /var/lib/ceph/bootstrap-{osd,mds,rgw}
 
-sudo cp "/vagrant/ceph/bootstrap-osd.$CLUSTER.keyring" "/var/lib/ceph/bootstrap-osd/$CLUSTER.keyring"
-chown $USER:$GROUP "/var/lib/ceph/bootstrap-osd/$CLUSTER.keyring"
-sudo cp "/vagrant/ceph/bootstrap-mds.$CLUSTER.keyring" "/var/lib/ceph/bootstrap-mds/$CLUSTER.keyring"
-chown $USER:$GROUP "/var/lib/ceph/bootstrap-mds/$CLUSTER.keyring"
-sudo cp "/vagrant/ceph/bootstrap-rgw.$CLUSTER.keyring" "/var/lib/ceph/bootstrap-rgw/$CLUSTER.keyring"
-chown $USER:$GROUP "/var/lib/ceph/bootstrap-rgw/$CLUSTER.keyring"
-
-ceph-mon --setuser $USER --setgroup $GROUP --mkfs -i "$HOSTNAME" --monmap /etc/ceph/monmap --keyring "/vagrant/ceph/$CLUSTER.mon.keyring"
+ceph-mon --setuser $CEPHUSER --setgroup $CEPHGROUP --mkfs -i "$HOSTNAME" --monmap /etc/ceph/monmap --keyring "${MON_KEYRING_TMP}"
 
 
 touch "/var/lib/ceph/mon/$CLUSTER-$HOSTNAME/done"

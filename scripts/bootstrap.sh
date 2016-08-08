@@ -7,13 +7,10 @@ set -e
 set -x
 export DEBIAN_FRONTEND=noninteractive
 
+source /etc/bootstrap/env.sh
 env
 
 if [[ -z "$NET_IP" || \
-    -z "$NET_MASK" || \
-    -z "$CONTROLLERS" || \
-    -z "$SLAVES"  || \
-    -z "$MONITORS"  || \
     -z "$ROLES" || \
     -z "$CIDR" || \
     -z "$QUORUM" ]]; then
@@ -21,7 +18,10 @@ if [[ -z "$NET_IP" || \
   exit 1
 fi
 
-SCRIPT_PATH="${1:-/vagrant/scripts}"
+SCRIPT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+FILES_DIR="${SCRIPT_PATH}/../files"
+INTERFACE=${MAIN_IF:-eth1}
+NET_MASK=$(ifconfig "$INTERFACE" | sed -rn '2s/ .*:(.*)$/\1/p')
 
 # Hosts arrays computation
 IFS=' ' read -r -a CTRLNODES <<< "${CONTROLLERS}"
@@ -31,8 +31,8 @@ IFS=' ' read -r -a CEPHNODES <<< "${MONITORS}"
 # Roles
 IFS=' ' read -r -a SRVROLES <<< "${ROLES}"
 
-. /vagrant/scripts/properties.sh
-. /vagrant/scripts/functions.sh
+. "${SCRIPT_PATH}"/properties.sh
+. "${SCRIPT_PATH}"/functions.sh
 
 HOSTNAME=$(get_property HOSTNAME)
 RACK=$(get_property RACK)
@@ -40,7 +40,7 @@ UNIT=$(get_property UNIT)
 
 ZK_HOSTS=$(get_property ZK_HOSTS)
 
-INTERFACE="eth1"
+
 
 CONTROLLER_ID=$(get_property CONTROLLER_ID)
 CEPH_MON_ID=$(get_property CEPH_MON_ID)
@@ -57,8 +57,15 @@ function main(){
   echo ">>> Updating Hostname and /etc/hosts"
   call host.sh
 
-  echo ">>> Installing Quagga"
-  call quagga.sh
+  if has "QUAGGA" "${SRVROLES[@]}"; then
+    echo ">>> Installing Quagga"
+    call quagga.sh
+  fi
+
+  if has "PLENUM" "${SRVROLES[@]}"; then
+    echo ">>> Installing Plenum"
+    call plenum.sh
+  fi
 
   echo ">>> Installing Docker"
   call docker.sh

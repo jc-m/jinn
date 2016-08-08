@@ -32,9 +32,7 @@ chmod a+x /usr/bin/docker
 # Docker access for medallia user
 gpasswd -a "$USER" docker
 
-if [ -e /vagrant/.dockercfg ]; then
-  cp /vagrant/.dockercfg /etc/dockercfg
-else
+if [[ -z $(copy_file "/docker/dockercfg" /etc/dockercfg) ]] ; then
   echo "{}" > /etc/dockercfg
 fi
 
