@@ -6,6 +6,8 @@ resource "aws_instance" "cephnodes" {
   #Number of controllers we want in our system
   count = "${length(var.cephnodes)}"
 
+  depends_on = ["aws_route.jinn_vpc_egress_route"]
+
   # The connection block tells our provisioner how to
   # communicate with the resource (instance)
   connection {
@@ -18,7 +20,7 @@ resource "aws_instance" "cephnodes" {
 
   #Todo(Darshan): change vm sizes based on certain dynamics
   # NOTE: not all flavors are compatible with our HVM AMI.
-  instance_type = "t2.medium"
+  instance_type = "t2.small"
 
   source_dest_check = "false"
 
@@ -29,7 +31,7 @@ resource "aws_instance" "cephnodes" {
   # The name of our SSH keypair we created above.
   key_name = "jc-fabric-key"
 
-  user_data = "${data.template_cloudinit_config.cephconfig.rendered}"
+  user_data = "${element(template_cloudinit_config.cephconfig.*.rendered, count.index)}"
 
   # This is basically equal distribution of resources. picking a region at index nodecount % azcount with each run. N%M = N - ((N/M)*M)
   subnet_id = "${element(aws_subnet.jinn_subnet.*.id, count.index - ((count.index / length(var.subnets) * length(var.subnets))))}"
@@ -38,7 +40,7 @@ resource "aws_instance" "cephnodes" {
 
   vpc_security_group_ids = [ "${aws_security_group.jinn.id}" ]
 
-  ebs_optimized = true
+  #ebs_optimized = true
   root_block_device {
     volume_size = 20
   }
@@ -57,6 +59,20 @@ resource "aws_instance" "cephnodes" {
     volume_size = 30
     delete_on_termination = true
   }
+  #ebs_optimized = true
+  # ephemeral_block_device {
+  #   device_name="/dev/sdb"
+  #   virtual_name="ephemeral0"
+  # }
+  # ephemeral_block_device {
+  #   device_name="/dev/sdc"
+  #   virtual_name="ephemeral1"
+  # }
+  # ephemeral_block_device {
+  #   device_name="/dev/sde"
+  #   virtual_name="ephemeral2"
+  # }
+
   tags {
       "Name" = "jinn-${var.clustername}-ceph${count.index}"
   }
@@ -65,12 +81,13 @@ resource "aws_instance" "cephnodes" {
     destination = "/home/ubuntu"
   }
 
-  #provisioner "remote-exec" {
-  #  inline = ["sudo bash -x /home/ubuntu/scripts/bootstrap.sh"]
-  #}
+  provisioner "remote-exec" {
+    inline = ["sudo bash -x /home/ubuntu/scripts/bootstrap.sh"]
+  }
 }
 
-data "template_file" "cephnodes_bootstrap_payload" {
+resource "template_file" "cephnodes_bootstrap_payload" {
+  count    = "${length(var.cephnodes)}"
   template = "${file("bootstrap_payload.tpl")}"
   vars {
     controllers="${join(" ", var.controllers)}"
@@ -83,7 +100,7 @@ data "template_file" "cephnodes_bootstrap_payload" {
     clusterName="${var.clustername}"
     dcname="jinn"
     count="${count.index}"
-    netip="${element(var.cephnodes, count.index)}"
+    netip="${element(var.cephnodes,count.index)}"
     quorum="${var.quorum}"
   }
 
@@ -91,14 +108,14 @@ data "template_file" "cephnodes_bootstrap_payload" {
 
 }
 
-data "template_cloudinit_config" "cephconfig" {
+resource "template_cloudinit_config" "cephconfig" {
   gzip = true
   base64_encode = true
-
+  count = "${length(var.cephnodes)}"
   part {
     filename = "init.cfg"
     content_type = "text/cloud-config"
-    content = "${data.template_file.cephnodes_bootstrap_payload.rendered}"
+    content = "${element(template_file.cephnodes_bootstrap_payload.*.rendered, count.index)}"
   }
 }
 

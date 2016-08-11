@@ -75,6 +75,16 @@ variable "cephnodes"{
     description = "list of ceph nodes"
 }
 
+variable "sshnodes"{
+    type = "list"
+    description = "list of ssh nodes"
+}
+
+variable "ssh_roles"{
+    type = "list"
+    description = "roles for ssh nodes"
+}
+
 variable "ceph_roles"{
     type = "list"
     description = "roles for ceph nodes"

@@ -38,6 +38,7 @@ function get_property()
   local _CEPH_CLIENT_KEYRING=""
   local _CEPH_MON_KEYRING=""
   local _CEPH_OSD_KEYRING=""
+  local _CONTROLLERS=""
 
   local _var=$1
   local _NET_IP=$2
@@ -84,6 +85,8 @@ function get_property()
     array+=("$zk_ip:2181")
     (( counter ++ ))
   done
+
+  _CONTROLLERS=$(IFS=, ; echo "${CTRLNODES[*]}")
 
   _ZK_HOSTS=$( IFS=, ; echo "${array[*]}" )
 

@@ -55,3 +55,8 @@ net.ipv4.ip_forward=1
 #Increase netfilter limit
 net.netfilter.nf_conntrack_max = 4194304
 EOF
+
+# need this to be set on the fly too
+sysctl -w net.ipv4.conf.default.proxy_arp=1
+sysctl -w net.ipv4.ip_forward=1
+
